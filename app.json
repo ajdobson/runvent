@@ -14,11 +14,18 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ajdevelopment.runvent"
+      "bundleIdentifier": "com.ajdevelopment.runvent",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.runvent.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0519313e-e7dc-4446-ab75-ca9dbc7b59a7"
+      }
     }
   }
 }
-
