@@ -26,6 +26,15 @@
       "eas": {
         "projectId": "0519313e-e7dc-4446-ab75-ca9dbc7b59a7"
       }
-    }
+    },
+    "plugins": [
+      [
+        "./plugins/withGoogleMobileAds.js",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ]
+    ]
   }
 }

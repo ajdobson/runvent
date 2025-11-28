@@ -12,6 +12,7 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { Ionicons } from '@expo/vector-icons';
 import { StorageService } from '../services/StorageService';
 import { DayChallenge, UnitType } from '../types';
@@ -193,6 +194,17 @@ export default function CalendarScreen() {
         showsVerticalScrollIndicator={false}
       />
 
+      {/* AdMob Banner Ad */}
+      <View style={styles.adContainer}>
+        <BannerAd
+          unitId={__DEV__ ? TestIds.BANNER : 'ca-app-pub-3940256099942544/6300978111'}
+          size={BannerAdSize.FULL_BANNER}
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
+      </View>
+
       {/* Settings Modal */}
       <Modal
         animationType="slide"
@@ -350,7 +362,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
     paddingTop: 24,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   roadSection: {
     width: '100%',
@@ -561,6 +573,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  adContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff4d2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
   },
 });
 
