@@ -67,6 +67,9 @@ target 'Runvent' do
       target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
         resource_bundle_target.build_configurations.each do |config|
           config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+          # Fix for Swift library copying in resource bundles
+          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
+          config.build_settings['EMBEDDED_CONTENT_CONTAINS_SWIFT'] = 'NO'
         end
       end
     end
@@ -76,8 +79,15 @@ target 'Runvent' do
       target.build_configurations.each do |config|
         # Ensure Swift is properly configured
         config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
         config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+        
+        # Only embed Swift libraries for app targets, not bundles
+        if target.name.include?('Bundle') || target.name.include?('bundle')
+          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
+          config.build_settings['EMBEDDED_CONTENT_CONTAINS_SWIFT'] = 'NO'
+        else
+          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
+        end
         
         # Fix for Google Mobile Ads Swift linking
         if target.name.include?('Google-Mobile-Ads') || target.name.include?('RNGoogleMobileAds')
