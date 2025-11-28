@@ -1,4 +1,4 @@
-const { withInfoPlist, withAndroidManifest } = require('@expo/config-plugins');
+const { withInfoPlist, withAndroidManifest, withXcodeProject } = require('@expo/config-plugins');
 
 function withGoogleMobileAds(config, { androidAppId, iosAppId }) {
   // iOS configuration
@@ -6,6 +6,18 @@ function withGoogleMobileAds(config, { androidAppId, iosAppId }) {
     if (iosAppId) {
       config.modResults.GADApplicationIdentifier = iosAppId;
     }
+    return config;
+  });
+
+  // Configure Xcode project for Swift support
+  config = withXcodeProject(config, (config) => {
+    const xcodeProject = config.modResults;
+    
+    // Ensure Swift is enabled
+    xcodeProject.addBuildProperty('SWIFT_VERSION', '5.0');
+    xcodeProject.addBuildProperty('ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES', 'YES');
+    xcodeProject.addBuildProperty('CLANG_ENABLE_MODULES', 'YES');
+    
     return config;
   });
 
