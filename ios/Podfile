@@ -75,14 +75,20 @@ target 'Runvent' do
 
     # Fix for Swift linking issues with Google Mobile Ads SDK
     installer.pods_project.targets.each do |target|
+      is_bundle = target.name.include?('Bundle') || target.name.include?('bundle')
+      
       target.build_configurations.each do |config|
         # Ensure Swift is properly configured
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
         
-        # Only modify Swift embedding for non-bundle targets
-        # Let bundle targets use their default settings
-        unless target.name.include?('Bundle') || target.name.include?('bundle')
+        # Configure Swift embedding based on target type
+        if is_bundle
+          # Bundles should not embed Swift libraries
+          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
+          config.build_settings['EMBEDDED_CONTENT_CONTAINS_SWIFT'] = 'NO'
+        else
+          # App and library targets should embed Swift libraries
           config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
         end
         
@@ -90,6 +96,20 @@ target 'Runvent' do
         if target.name.include?('Google-Mobile-Ads') || target.name.include?('RNGoogleMobileAds')
           config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = ''
           config.build_settings['SWIFT_OBJC_INTERFACE_HEADER_NAME'] = ''
+        end
+      end
+      
+      # Remove CopySwiftLibs build phase from bundle targets to prevent build errors
+      if is_bundle
+        target.build_phases.each do |phase|
+          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
+            script = phase.shell_script.to_s
+            # Remove any CopySwiftLibs or swift-stdlib-tool phases
+            if script.include?('swift-stdlib-tool') || script.include?('CopySwiftLibs') || 
+               phase.name == '[CP] Copy Swift Libs' || phase.name == 'CopySwiftLibs'
+              target.build_phases.delete(phase)
+            end
+          end
         end
       end
     end
