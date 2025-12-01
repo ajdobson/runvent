@@ -1,13 +1,11 @@
-require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '1' : '0'
-ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
 
-platform :ios, podfile_properties['ios.deploymentTarget'] || '13.4'
+platform :ios, podfile_properties['ios.deploymentTarget'] || '15.0'
 install! 'cocoapods',
   :deterministic_uuids => false
 
@@ -38,15 +36,17 @@ elsif podfile_properties.key?('ios.flipper') then
 end
 
 target 'Runvent' do
-  use_expo_modules!
   config = use_native_modules!
+  
+  # Add react-native-vector-icons
+  pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
 
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
   use_react_native!(
     :path => config[:reactNativePath],
-    :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
+    :hermes_enabled => podfile_properties['jsEngine'] == nil || podfile_properties['jsEngine'] == 'hermes',
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/..",
     # Note that if you have use_frameworks! enabled, Flipper will not work if enabled
@@ -67,76 +67,16 @@ target 'Runvent' do
       target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
         resource_bundle_target.build_configurations.each do |config|
           config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-          # Don't modify Swift settings for resource bundles - let them use defaults
-          # The CopySwiftLibs phase will be handled automatically
         end
       end
     end
 
-    # Fix for Swift linking issues with Google Mobile Ads SDK
+    # Standard iOS deployment target fix
     installer.pods_project.targets.each do |target|
-      is_bundle = target.name.include?('Bundle') || target.name.include?('bundle')
-      
       target.build_configurations.each do |config|
-        # Ensure Swift is properly configured
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-        
-        # Configure Swift embedding based on target type
-        if is_bundle
-          # Bundles should not embed Swift libraries
-          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
-          config.build_settings['EMBEDDED_CONTENT_CONTAINS_SWIFT'] = 'NO'
-        else
-          # App and library targets should embed Swift libraries
-          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
-        end
-        
-        # Fix for Google Mobile Ads Swift linking
-        if target.name.include?('Google-Mobile-Ads') || target.name.include?('RNGoogleMobileAds')
-          config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = ''
-          config.build_settings['SWIFT_OBJC_INTERFACE_HEADER_NAME'] = ''
-        end
-      end
-      
-      # Remove CopySwiftLibs build phase from bundle targets to prevent build errors
-      if is_bundle
-        target.build_phases.each do |phase|
-          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
-            script = phase.shell_script.to_s
-            # Remove any CopySwiftLibs or swift-stdlib-tool phases
-            if script.include?('swift-stdlib-tool') || script.include?('CopySwiftLibs') || 
-               phase.name == '[CP] Copy Swift Libs' || phase.name == 'CopySwiftLibs'
-              target.build_phases.delete(phase)
-            end
-          end
-        end
-      end
-    end
-
-    # Ensure the main app target has Swift support
-    installer.pods_project.build_configurations.each do |config|
-      config.build_settings['SWIFT_VERSION'] = '5.0'
-      config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
-    end
-
-    # Configure the main app target for Swift
-    installer.aggregate_targets.each do |aggregate_target|
-      aggregate_target.user_project.native_targets.each do |target|
-        target.build_configurations.each do |config|
-          config.build_settings['SWIFT_VERSION'] = '5.0'
-          config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
-          config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-        end
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       end
     end
   end
 
-  post_integrate do |installer|
-    begin
-      expo_patch_react_imports!(installer)
-    rescue => e
-      Pod::UI.warn e
-    end
-  end
 end

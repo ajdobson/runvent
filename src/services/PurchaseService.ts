@@ -1,60 +1,19 @@
+import * as RNIap from 'react-native-iap';
 import { StorageService } from './StorageService';
 
 // Replace with your actual product ID from App Store Connect / Google Play Console
-const REMOVE_ADS_PRODUCT_ID = 'com.runvent.removeads';
-
-// Lazy load the in-app purchases module to avoid errors if not available
-let InAppPurchases: any = null;
-
-const loadInAppPurchases = async () => {
-  if (InAppPurchases === null) {
-    try {
-      const module = await import('expo-in-app-purchases');
-      // expo-in-app-purchases uses named exports, try both default and named
-      InAppPurchases = module.default || module;
-      
-      // If still no methods, try accessing directly from module
-      if (!InAppPurchases || typeof InAppPurchases.isAvailableAsync !== 'function') {
-        // Try accessing methods directly from the module object
-        if (module.isAvailableAsync) {
-          InAppPurchases = module;
-        } else {
-          console.log('expo-in-app-purchases module structure unexpected or not available');
-          InAppPurchases = false;
-        }
-      }
-    } catch (error) {
-      console.log('expo-in-app-purchases not available:', error);
-      InAppPurchases = false; // Mark as unavailable
-    }
-  }
-  return InAppPurchases;
-};
+// Product IDs are case-sensitive and must match exactly what's in App Store Connect
+const REMOVE_ADS_PRODUCT_ID = 'com.ajdevelopment.runvent.removeAds';
 
 export class PurchaseService {
+  private static purchaseUpdateSubscription: any = null;
+  private static purchaseErrorSubscription: any = null;
+
   static async initialize(): Promise<void> {
     try {
-      const IAP = await loadInAppPurchases();
-      if (!IAP || IAP === false) {
-        console.log('In-app purchases not available');
-        return;
-      }
-
-      // Check if methods exist before calling
-      if (typeof IAP.isAvailableAsync !== 'function') {
-        console.log('In-app purchases methods not available');
-        return;
-      }
-
-      const isAvailable = await IAP.isAvailableAsync();
-      if (!isAvailable) {
-        console.log('In-app purchases not available on this device');
-        return;
-      }
-
-      if (typeof IAP.connectAsync === 'function') {
-        await IAP.connectAsync();
-      }
+      // Check if IAP is available and connect
+      await RNIap.initConnection();
+      this.setupPurchaseListener();
     } catch (error) {
       console.error('Error initializing purchases:', error);
     }
@@ -62,23 +21,22 @@ export class PurchaseService {
 
   static async disconnect(): Promise<void> {
     try {
-      const IAP = await loadInAppPurchases();
-      if (IAP && IAP !== false) {
-        await IAP.disconnectAsync();
-      }
+      this.removePurchaseListeners();
+      await RNIap.endConnection();
     } catch (error) {
       console.error('Error disconnecting purchases:', error);
     }
   }
 
-  static async getProducts(): Promise<any[]> {
+  static async getProducts(): Promise<RNIap.Product[]> {
     try {
-      const IAP = await loadInAppPurchases();
-      if (!IAP || IAP === false || typeof IAP.getProductsAsync !== 'function') {
-        return [];
+      console.log('Fetching products with ID:', REMOVE_ADS_PRODUCT_ID);
+      const products = await RNIap.getProducts({ skus: [REMOVE_ADS_PRODUCT_ID] });
+      console.log('Available products:', products);
+      if (products.length === 0) {
+        console.warn('⚠️ No products found. Make sure the product ID exists in App Store Connect.');
       }
-      const { results } = await IAP.getProductsAsync([REMOVE_ADS_PRODUCT_ID]);
-      return results;
+      return products;
     } catch (error) {
       console.error('Error fetching products:', error);
       return [];
@@ -87,35 +45,27 @@ export class PurchaseService {
 
   static async purchaseRemoveAds(): Promise<boolean> {
     try {
-      const IAP = await loadInAppPurchases();
-      if (!IAP || IAP === false) {
-        throw new Error('In-app purchases not available');
+      // First, verify the product exists
+      const products = await this.getProducts();
+      if (products.length === 0) {
+        throw new Error(
+          'Product not found. Please ensure the product ID "com.ajdevelopment.runvent.removeads" exists in App Store Connect and is in "Ready to Submit" or "Approved" status.'
+        );
       }
-
-      if (typeof IAP.isAvailableAsync !== 'function' || typeof IAP.purchaseItemAsync !== 'function') {
-        throw new Error('In-app purchases methods not available');
-      }
-
-      const isAvailable = await IAP.isAvailableAsync();
-      if (!isAvailable) {
-        throw new Error('In-app purchases not available');
-      }
-
-      await IAP.purchaseItemAsync(REMOVE_ADS_PRODUCT_ID);
       
+      console.log('Requesting purchase for product:', REMOVE_ADS_PRODUCT_ID);
+      await RNIap.requestPurchase({ sku: REMOVE_ADS_PRODUCT_ID });
       // The purchase will be handled by the purchase listener
-      // For now, we'll check the purchase history
-      const hasPurchased = await this.checkPurchaseStatus();
-      if (hasPurchased) {
-        await this.setAdsRemoved(true);
-        return true;
-      }
-      
-      return false;
+      return true;
     } catch (error: any) {
       console.error('Error purchasing:', error);
       if (error.code === 'E_USER_CANCELLED') {
         throw new Error('Purchase was cancelled');
+      }
+      if (error.code === 'E_DEVELOPER_ERROR') {
+        throw new Error(
+          'Invalid product ID. Please ensure the product "com.ajdevelopment.runvent.removeads" exists in App Store Connect.'
+        );
       }
       throw error;
     }
@@ -123,23 +73,9 @@ export class PurchaseService {
 
   static async restorePurchases(): Promise<boolean> {
     try {
-      const IAP = await loadInAppPurchases();
-      if (!IAP || IAP === false) {
-        throw new Error('In-app purchases not available');
-      }
-
-      if (typeof IAP.isAvailableAsync !== 'function' || typeof IAP.getPurchaseHistoryAsync !== 'function') {
-        throw new Error('In-app purchases methods not available');
-      }
-
-      const isAvailable = await IAP.isAvailableAsync();
-      if (!isAvailable) {
-        throw new Error('In-app purchases not available');
-      }
-
-      const { results } = await IAP.getPurchaseHistoryAsync();
+      const purchases = await RNIap.getAvailablePurchases();
       
-      const hasRemoveAds = results.some(
+      const hasRemoveAds = purchases.some(
         (purchase) => purchase.productId === REMOVE_ADS_PRODUCT_ID
       );
 
@@ -157,28 +93,9 @@ export class PurchaseService {
 
   static async checkPurchaseStatus(): Promise<boolean> {
     try {
-      const IAP = await loadInAppPurchases();
-      if (!IAP || IAP === false) {
-        // If IAP not available, check stored status
-        const settings = await StorageService.getSettings();
-        return settings?.adsRemoved || false;
-      }
-
-      if (typeof IAP.isAvailableAsync !== 'function' || typeof IAP.getPurchaseHistoryAsync !== 'function') {
-        // If methods not available, check stored status
-        const settings = await StorageService.getSettings();
-        return settings?.adsRemoved || false;
-      }
-
-      const isAvailable = await IAP.isAvailableAsync();
-      if (!isAvailable) {
-        // If IAP not available, check stored status
-        const settings = await StorageService.getSettings();
-        return settings?.adsRemoved || false;
-      }
-
-      const { results } = await IAP.getPurchaseHistoryAsync();
-      const hasRemoveAds = results.some(
+      const purchases = await RNIap.getAvailablePurchases();
+      
+      const hasRemoveAds = purchases.some(
         (purchase) => purchase.productId === REMOVE_ADS_PRODUCT_ID
       );
 
@@ -224,31 +141,50 @@ export class PurchaseService {
 
   // Set up purchase listener
   static setupPurchaseListener(
-    onPurchaseUpdate: (purchase: any) => void
+    onPurchaseUpdate?: (purchase: RNIap.Purchase) => void
   ): () => void {
-    let subscription: any = null;
-    
-    loadInAppPurchases().then((IAP) => {
-      if (IAP && IAP !== false && typeof IAP.setPurchaseListener === 'function') {
-        subscription = IAP.setPurchaseListener(({ response, results }: any) => {
-          if (response === IAP.IAPResponseCode.OK) {
-            results.forEach((purchase: any) => {
-              if (purchase.productId === REMOVE_ADS_PRODUCT_ID) {
-                onPurchaseUpdate(purchase);
-              }
-            });
-          }
-        });
-      }
-    }).catch((error) => {
-      console.error('Error setting up purchase listener:', error);
-    });
+    // Remove existing listeners
+    this.removePurchaseListeners();
 
-    return () => {
-      if (subscription && typeof subscription.remove === 'function') {
-        subscription.remove();
+    // Set up new purchase update listener
+    this.purchaseUpdateSubscription = RNIap.purchaseUpdatedListener(
+      async (purchase: RNIap.Purchase) => {
+        if (purchase.productId === REMOVE_ADS_PRODUCT_ID) {
+          // Finish the transaction
+          try {
+            await RNIap.finishTransaction({ purchase });
+            await this.setAdsRemoved(true);
+            if (onPurchaseUpdate) {
+              onPurchaseUpdate(purchase);
+            }
+          } catch (error) {
+            console.error('Error processing purchase:', error);
+          }
+        }
       }
+    );
+
+    // Set up purchase error listener
+    this.purchaseErrorSubscription = RNIap.purchaseErrorListener(
+      (error: RNIap.PurchaseError) => {
+        console.error('Purchase error:', error);
+      }
+    );
+
+    // Return cleanup function
+    return () => {
+      this.removePurchaseListeners();
     };
   }
-}
 
+  private static removePurchaseListeners(): void {
+    if (this.purchaseUpdateSubscription) {
+      this.purchaseUpdateSubscription.remove();
+      this.purchaseUpdateSubscription = null;
+    }
+    if (this.purchaseErrorSubscription) {
+      this.purchaseErrorSubscription.remove();
+      this.purchaseErrorSubscription = null;
+    }
+  }
+}

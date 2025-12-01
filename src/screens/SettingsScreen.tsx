@@ -6,97 +6,21 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { StorageService } from '../services/StorageService';
-import { PurchaseService } from '../services/PurchaseService';
 import { UnitType } from '../types';
 
 export default function SettingsScreen() {
   const [unitType, setUnitType] = useState<UnitType>('km');
-  const [adsRemoved, setAdsRemoved] = useState(false);
-  const [isLoadingPurchase, setIsLoadingPurchase] = useState(false);
 
   useEffect(() => {
     loadSettings();
-    checkPurchaseStatus();
-    setupPurchaseListener();
-    
-    return () => {
-      PurchaseService.disconnect();
-    };
   }, []);
 
   const loadSettings = async () => {
     const settings = await StorageService.getSettings();
     if (settings) {
       setUnitType(settings.unitType);
-      setAdsRemoved(settings.adsRemoved || false);
-    }
-  };
-
-  const checkPurchaseStatus = async () => {
-    try {
-      const removed = await PurchaseService.checkPurchaseStatus();
-      setAdsRemoved(removed);
-    } catch (error) {
-      console.error('Error checking purchase status:', error);
-      // Silently fail - just check stored status
-      const settings = await StorageService.getSettings();
-      setAdsRemoved(settings?.adsRemoved || false);
-    }
-  };
-
-  const setupPurchaseListener = async () => {
-    try {
-      await PurchaseService.initialize();
-      
-      const cleanup = PurchaseService.setupPurchaseListener(async (purchase) => {
-        if (purchase && purchase.productId === 'com.runvent.removeads') {
-          await PurchaseService.setAdsRemoved(true);
-          setAdsRemoved(true);
-          Alert.alert('Success', 'Ads have been removed! Thank you for your purchase.');
-        }
-      });
-      
-      // Store cleanup function if needed
-      return cleanup;
-    } catch (error) {
-      // Silently fail - in-app purchases may not be available in Expo Go
-      console.error('Error setting up purchase listener:', error);
-    }
-  };
-
-  const handlePurchase = async () => {
-    setIsLoadingPurchase(true);
-    try {
-      await PurchaseService.purchaseRemoveAds();
-      // Purchase will be handled by the listener
-    } catch (error: any) {
-      Alert.alert(
-        'Purchase Failed',
-        error.message || 'Unable to complete purchase. Please try again.'
-      );
-    } finally {
-      setIsLoadingPurchase(false);
-    }
-  };
-
-  const handleRestore = async () => {
-    setIsLoadingPurchase(true);
-    try {
-      const restored = await PurchaseService.restorePurchases();
-      if (restored) {
-        setAdsRemoved(true);
-        Alert.alert('Success', 'Your purchase has been restored!');
-      } else {
-        Alert.alert('No Purchases Found', 'No previous purchases were found to restore.');
-      }
-    } catch (error: any) {
-      Alert.alert('Restore Failed', error.message || 'Unable to restore purchases. Please try again.');
-    } finally {
-      setIsLoadingPurchase(false);
     }
   };
 
@@ -168,6 +92,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* IAP Section - Commented out for now
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Remove Ads</Text>
         {adsRemoved ? (
@@ -204,6 +129,7 @@ export default function SettingsScreen() {
           </>
         )}
       </View>
+      */}
     </ScrollView>
   );
 }
@@ -211,7 +137,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff4d2',
+    backgroundColor: '#ffffff',
     padding: 16,
   },
   section: {
@@ -266,56 +192,5 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
     marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  purchaseStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#f0fff0',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#228b22',
-  },
-  purchaseStatusText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#228b22',
-    marginLeft: 8,
-  },
-  purchaseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#8a2a39',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  purchaseButtonDisabled: {
-    opacity: 0.6,
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  purchaseButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  restoreButton: {
-    padding: 12,
-    alignItems: 'center',
-  },
-  restoreButtonText: {
-    fontSize: 14,
-    color: '#8a2a39',
-    textDecorationLine: 'underline',
   },
 });

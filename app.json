@@ -1,40 +1,8 @@
 {
-  "expo": {
-    "name": "Runvent",
-    "slug": "runvent",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#FF4444"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ajdevelopment.runvent",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "package": "com.runvent.app"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "0519313e-e7dc-4446-ab75-ca9dbc7b59a7"
-      }
-    },
-    "plugins": [
-      [
-        "./plugins/withGoogleMobileAds.js",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
-        }
-      ]
-    ]
+  "name": "Runvent",
+  "displayName": "Runvent",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-xxxxxxxx~xxxxxxxx",
+    "ios_app_id": "ca-app-pub-6841905717899891~1800479471"
   }
 }

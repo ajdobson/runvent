@@ -12,12 +12,18 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
-import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { StorageService } from '../services/StorageService';
 import { DayChallenge, UnitType } from '../types';
 import { formatDate, getDecemberDays, isDateInPast, isDateToday } from '../utils/dateUtils';
 import SettingsScreen from './SettingsScreen';
+import MobileAds, {
+  BannerAd,
+  BannerAdSize,
+  TestIds,
+}  from "react-native-google-mobile-ads";
+
+
 
 export default function CalendarScreen() {
   const [challenges, setChallenges] = useState<DayChallenge[]>([]);
@@ -59,7 +65,13 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     loadData();
+
+    MobileAds().openAdInspector(); 
+    // checkPermissions();
   }, []);
+
+
+  const adUnitId = __DEV__? TestIds.BANNER : "ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyyyy";
 
   const handleDayPress = (challenge: DayChallenge) => {
     const canLog = isDateToday(challenge.date) || isDateInPast(challenge.date);
@@ -122,7 +134,7 @@ export default function CalendarScreen() {
   const renderDay = ({ item, index }: { item: DayChallenge; index: number }) => {
     const isToday = isDateToday(item.date);
     const isPast = isDateInPast(item.date);
-    const canLog = isToday || isPast;
+    const canLog = true;
     const isLeft = index % 2 === 0;
 
     return (
@@ -186,24 +198,24 @@ export default function CalendarScreen() {
           </TouchableOpacity>
         </View>
 
-      <FlatList
-        data={challenges}
-        renderItem={renderDay}
-        keyExtractor={(item) => item.day.toString()}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
+        <BannerAd
+       unitId={TestIds.BANNER }
+       onAdLoaded={() => console.log("loaded")}
+       onAdFailedToLoad={(error: any) => console.log("error", error)}
+       onAdClosed={() => console.log("closed")}
+       size={BannerAdSize.BANNER}
       />
 
-      {/* AdMob Banner Ad */}
-      <View style={styles.adContainer}>
-        <BannerAd
-          unitId={__DEV__ ? TestIds.BANNER : 'ca-app-pub-3940256099942544/6300978111'}
-          size={BannerAdSize.FULL_BANNER}
-          requestOptions={{
-            requestNonPersonalizedAdsOnly: true,
-          }}
-        />
-      </View>
+        <View style={styles.contentContainer}>
+          <FlatList
+            data={challenges}
+            renderItem={renderDay}
+            keyExtractor={(item) => item.day.toString()}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+      </SafeAreaView>
 
       {/* Settings Modal */}
       <Modal
@@ -216,9 +228,9 @@ export default function CalendarScreen() {
           <View style={styles.settingsHeader}>
             <Text style={styles.settingsHeaderTitle}>Settings</Text>
             <TouchableOpacity 
-              onPress={() => {
+              onPress={async () => {
                 setSettingsVisible(false);
-                loadData(); // Reload data when settings close
+                await loadData(); // Reload data when settings close
               }}
               style={styles.closeButton}
             >
@@ -306,7 +318,6 @@ export default function CalendarScreen() {
           </View>
         </View>
       </Modal>
-      </SafeAreaView>
     </View>
   );
 }
@@ -314,16 +325,20 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
-    backgroundColor: '#fff4d2',
+    backgroundColor: '#ffffff',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff4d2',
+    backgroundColor: '#ffffff',
+  },
+  contentContainer: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',    paddingHorizontal: 16,
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 3,
     borderBottomColor: '#228b22',
@@ -341,7 +356,7 @@ const styles = StyleSheet.create({
   },
   settingsModal: {
     flex: 1,
-    backgroundColor: '#fff4d2',
+    backgroundColor: '#ffffff',
   },
   settingsHeader: {
     flexDirection: 'row',
@@ -362,7 +377,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
     paddingTop: 24,
-    paddingBottom: 120,
+    paddingBottom: 40,
   },
   roadSection: {
     width: '100%',
@@ -408,25 +423,26 @@ const styles = StyleSheet.create({
     borderColor: '#ffd700',
   },
   cardContainer: {
-    width: '60%',
+    width: 150,
+    height: 150,
     zIndex: 3,
     marginBottom: 20,
   },
   cardLeft: {
-    alignSelf: 'flex-start',
-    marginLeft: 0,
+    alignSelf: 'center',
+    marginLeft: -40,
   },
   cardRight: {
-    alignSelf: 'flex-end',
-    marginRight: 0,
+    alignSelf: 'center',
+    marginRight: -40,
   },
   dayCard: {
-    padding: 16,
+    width: 150,
+    height: 150,
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 75,
     borderWidth: 3,
     borderColor: '#8a2a39',
-    minHeight: 100,
     shadowColor: '#87ceeb',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -453,40 +469,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
-    width: '100%',
+    marginBottom: 4,
   },
   dayNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
   },
   targetText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 2,
     textAlign: 'center',
   },
-  completedIcon: {
-    fontSize: 24,
-  },
   actualText: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#228b22',
     fontWeight: '600',
     textAlign: 'center',
   },
   todayBadge: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#8a2a39',
     textAlign: 'center',
   },
   lockedBadge: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#999',
     textAlign: 'center',
@@ -574,17 +586,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  adContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff4d2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-  },
 });
-
